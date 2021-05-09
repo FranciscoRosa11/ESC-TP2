@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <thread>
+#include <mutex>
 #include <string.h>
 #include <netdb.h>
 #include <sys/uio.h>
@@ -16,6 +17,10 @@
 #include <fcntl.h>
 #include <fstream>
 using namespace std;
+
+std::mutex mtx;
+
+int64_t key = 0;
 
 void worker(int newSd) {
     char buffer[1024];
@@ -28,10 +33,30 @@ void worker(int newSd) {
             fprintf(stderr, "Error receiving data %d\n", errno);
         }
         printf("Received bytes %d\nReceived string \"%s\"\n", bytecount, buffer);
-        strcat(buffer, " SERVER ECHO");
+        if(!strcmp(buffer, "create")) {
+            mtx.lock();
+            key += 1;
+            mtx.unlock(); 
+            std::string s = std::to_string(key);
+            std::ofstream outfile ("../files/"+s+".txt");
+            outfile << "create" << std::endl;
+            outfile.close();
+            const char *cstr = s.c_str();
+            strcat(buffer, cstr);
+        }
+        else {
+            strcat(buffer, " SERVER ECHO");
+        }
         if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){
             fprintf(stderr, "Error sending data %d\n", errno);
         }
+        memset(buffer, 0, buffer_len);
+        if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){
+            fprintf(stderr, "Error receiving data %d\n", errno);
+        }
+        // TODO CHANGE LOGIC OF RECEIVING REGISTER FROM CLIENT
+        printf("Received string %s\n", buffer);
+
         printf("Sent bytes %d\n", bytecount);
     }
 }

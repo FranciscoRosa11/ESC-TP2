@@ -25,7 +25,8 @@ int main(int argc, char *argv[])
     } //grab the IP address and port number 
     char *serverIp = argv[1]; int port = atoi(argv[2]); 
     //create a message buffer 
-    char msg[1500]; 
+    char msg[1024];
+    char message[1024]; 
     //setup a socket and connection tools 
     struct hostent* host = gethostbyname(serverIp); 
     sockaddr_in sendSockAddr;   
@@ -46,19 +47,34 @@ int main(int argc, char *argv[])
     int bytesRead, bytesWritten = 0;
     struct timeval start1, end1;
     gettimeofday(&start1, NULL);
+    char letters[] = "abcdefghijklmnopqrstuvwxyz";
     while(1)
     {
         cout << ">";
         string data;
         getline(cin, data);
         memset(&msg, 0, sizeof(msg));//clear the buffer
+        int i = 0;
+        while(i < 1024) {
+            char x = letters[rand() % 26];
+            msg[i] = x;
+            i++;
+        }
         strcpy(msg, data.c_str());
         if(data == "exit")
         {
             send(clientSd, (char*)&msg, strlen(msg), 0);
             break;
         }
-        bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0);
+        if(data == "create") {
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0);
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg),0);
+            cout << "Server: " << msg << endl;
+            bytesWritten += send(clientSd, (char*)&message, strlen(message), 0);
+            memset(&message, 0, sizeof(message));//clear the buffer
+        }
+        /*bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0);
         cout << "Awaiting server response..." << endl;
         memset(&msg, 0, sizeof(msg));//clear the buffer
         bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
@@ -67,7 +83,7 @@ int main(int argc, char *argv[])
             cout << "Server has quit the session" << endl;
             break;
         }
-        cout << "Server: " << msg << endl;
+        cout << "Server: " << msg << endl;*/
     }
     gettimeofday(&end1, NULL);
     close(clientSd);
