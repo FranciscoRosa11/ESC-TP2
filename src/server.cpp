@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <thread>
 #include <string.h>
 #include <netdb.h>
 #include <sys/uio.h>
@@ -81,19 +82,26 @@ int main(int argc, char *argv[])
     socklen_t newSockAddrSize = sizeof(newSockAddr);
     //accept, create a new socket descriptor to 
     //handle the new connection with client
-    int newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize);
-    if(newSd < 0)
+    struct timeval start1, end1;
+    gettimeofday(&start1, NULL);
+    int newSd;
+    while((newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize)) != -1) {
+        cout << "Connected with client!" << endl;
+
+        std::thread t(worker,newSd);
+        t.detach();
+    }
+    //int newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize);
+    /*if(newSd < 0)
     {
         cerr << "Error accepting request from client!" << endl;
         exit(1);
-    }
+    }*/
     
-    cout << "Connected with client!" << endl;
+    
     //lets keep track of the session time
-    struct timeval start1, end1;
-    gettimeofday(&start1, NULL);
+    
     //also keep track of the amount of data sent as well
-    int bytesRead, bytesWritten = 0;
     /*while(1)
     {
         //receive a message from the client (listen)
@@ -120,13 +128,13 @@ int main(int argc, char *argv[])
         //send the message to client
         bytesWritten += send(newSd, (char*)&msg, strlen(msg), 0);
     }*/
-    worker(newSd);
+    
     //we need to close the socket descriptors after we're all done
     gettimeofday(&end1, NULL);
     close(newSd);
     close(serverSd);
     cout << "********Session********" << endl;
-    cout << "Bytes written: " << bytesWritten << " Bytes read: " << bytesRead << endl;
+    //cout << "Bytes written: " << bytesWritten << " Bytes read: " << bytesRead << endl;
     cout << "Elapsed time: " << (end1.tv_sec - start1.tv_sec) 
         << " secs" << endl;
     cout << "Connection closed..." << endl;
