@@ -24,11 +24,14 @@ int64_t key = 0;
 
 void worker(int newSd) {
     char buffer[1024];
+    char textfile[1024];
+    int text_len = 1024;
     int buffer_len = 1024;
     int bytecount;
 
     while(1) {
         memset(buffer, 0, buffer_len);
+        memset(textfile, 0, text_len);
         if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){
             fprintf(stderr, "Error receiving data %d\n", errno);
         }
@@ -36,27 +39,42 @@ void worker(int newSd) {
         if(!strcmp(buffer, "create")) {
             mtx.lock();
             key += 1;
-            mtx.unlock(); 
+            mtx.unlock();
+            strcat(buffer, " SERVER ECHO");
+            if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){
+                fprintf(stderr, "Error sending data %d\n", errno);
+            }
             std::string s = std::to_string(key);
             std::ofstream outfile ("../files/"+s+".txt");
-            outfile << "create" << std::endl;
+            memset(buffer, 0, buffer_len);
+            if((bytecount = recv(newSd, textfile, text_len, 0))== -1){
+                fprintf(stderr, "Error receiving data to write in file%d\n", errno);
+            }
+            outfile << textfile << std::endl;
             outfile.close();
+            printf("Received bytes %d\n", bytecount);
             const char *cstr = s.c_str();
             strcat(buffer, cstr);
+            memset(buffer, 0, buffer_len);
+            memset(textfile, 0, text_len);
         }
-        else {
-            strcat(buffer, " SERVER ECHO");
+        // we want to update a register
+        // receive "update" from client
+        // ask for register key
+        // receive register key and text
+        if(!strcmp(buffer, "update")) {
+            memset(buffer, 0, buffer_len);
+            strcat(buffer, "SEND REGISTER KEY");
+            if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){ //ask for register key
+                fprintf(stderr, "Error sending data %d\n", errno);
+            }
+            memset(buffer, 0, buffer_len);
+            if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){ //receive register key
+                fprintf(stderr, "Error receiving data to write in file%d\n", errno);
+            }
+            printf("REGISTER KEY: %s\n", buffer);
+            memset(buffer, 0, buffer_len);
         }
-        if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){
-            fprintf(stderr, "Error sending data %d\n", errno);
-        }
-        memset(buffer, 0, buffer_len);
-        if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){
-            fprintf(stderr, "Error receiving data %d\n", errno);
-        }
-        // TODO CHANGE LOGIC OF RECEIVING REGISTER FROM CLIENT
-        printf("Received string %s\n", buffer);
-
         printf("Sent bytes %d\n", bytecount);
     }
 }
@@ -91,7 +109,7 @@ int main(int argc, char *argv[])
         exit(0);
     }
     //bind the socket to its local address
-    int bindStatus = bind(serverSd, (struct sockaddr*) &servAddr, 
+    int bindStatus = ::bind(serverSd, (struct sockaddr*) &servAddr, 
         sizeof(servAddr));
     if(bindStatus < 0)
     {

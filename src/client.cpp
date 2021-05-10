@@ -54,10 +54,11 @@ int main(int argc, char *argv[])
         string data;
         getline(cin, data);
         memset(&msg, 0, sizeof(msg));//clear the buffer
+        memset(&message, 0, sizeof(message));//clear the buffer
         int i = 0;
         while(i < 1024) {
             char x = letters[rand() % 26];
-            msg[i] = x;
+            message[i] = x;
             i++;
         }
         strcpy(msg, data.c_str());
@@ -72,6 +73,22 @@ int main(int argc, char *argv[])
             bytesRead += recv(clientSd, (char*)&msg, sizeof(msg),0);
             cout << "Server: " << msg << endl;
             bytesWritten += send(clientSd, (char*)&message, strlen(message), 0);
+            memset(&message, 0, sizeof(message));//clear the buffer
+        }
+        // we want to update a register
+        // send "update" from client
+        // server asks for register key
+        // send register key and text
+        if(data == "update") {
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send "update"
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
+            cout << "Server: " << msg << endl; // server asked for register key
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            getline(cin, data);
+            strcpy(msg, data.c_str());
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send register key
+            //bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
             memset(&message, 0, sizeof(message));//clear the buffer
         }
         /*bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0);
