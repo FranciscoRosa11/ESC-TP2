@@ -1,0 +1,7 @@
+store last key in file so it does not override existing files.
+error sending from server to client
+mutex for files?
+100mil/s --> 10 servidores
+assumir que cliente envia a chave
+random entre 0 e 22, se for 0 é read, se for maior é write, com random keys
+nao medir tempo de cada request

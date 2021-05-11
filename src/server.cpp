@@ -19,6 +19,7 @@
 using namespace std;
 
 std::mutex mtx;
+fstream readFile;
 
 int64_t key = 0;
 
@@ -39,13 +40,12 @@ void worker(int newSd) {
         printf("Received bytes %d\nReceived string \"%s\"\n", bytecount, buffer);
         if(!strcmp(buffer, "create")) {
             mtx.lock();
-            key += 1;
-            mtx.unlock();
+            int index = rand() % 100000;
+            readFile.seekp(index * 1024);
             strcat(buffer, " SERVER ECHO");
             if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){
                 fprintf(stderr, "Error sending data %d\n", errno);
             }
-            std::string s = std::to_string(key);
             std::ofstream outfile ("../files/"+s+".txt");
             memset(buffer, 0, buffer_len);
             if((bytecount = recv(newSd, textfile, text_len, 0))== -1){
@@ -58,6 +58,7 @@ void worker(int newSd) {
             strcat(buffer, cstr);
             memset(buffer, 0, buffer_len);
             memset(textfile, 0, text_len);
+            mtx.unlock();
         }
         // we want to update a register
         // receive "update" from client
@@ -134,6 +135,31 @@ int main(int argc, char *argv[])
         cerr << "Usage: port" << endl;
         exit(0);
     }
+
+    // Create records file
+    char letters[] = "abcdefghijklmnopqrstuvwxyz";
+    char message[1024];
+    char r[1024];
+    fstream outFile;
+    outFile.open("../files/records.txt", fstream::out | fstream::in);
+    int i = 0;
+    int j = 0;
+    for(i = 0; i < 100000; i++) {
+        memset(message, 0, 1024);
+        while(j < 1024) {
+            char x = letters[rand() % 26];
+            message[j] = x;
+            j++;
+        }
+        j = 0;
+        outFile.seekp(i * 1024);
+        outFile.write(message, 1024);
+    }
+
+    outFile.close();
+
+    readFile.open("../files/records.txt", fstream::out | fstream::in);
+
     //grab the port number
     int port = atoi(argv[1]);
     //buffer to send and receive messages with
@@ -180,43 +206,6 @@ int main(int argc, char *argv[])
         std::thread t(worker,newSd);
         t.detach();
     }
-    //int newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize);
-    /*if(newSd < 0)
-    {
-        cerr << "Error accepting request from client!" << endl;
-        exit(1);
-    }*/
-    
-    
-    //lets keep track of the session time
-    
-    //also keep track of the amount of data sent as well
-    /*while(1)
-    {
-        //receive a message from the client (listen)
-        cout << "Awaiting client response..." << endl;
-        memset(&msg, 0, sizeof(msg));//clear the buffer
-        bytesRead += recv(newSd, (char*)&msg, sizeof(msg), 0);
-        if(!strcmp(msg, "exit"))
-        {
-            cout << "Client has quit the session" << endl;
-            break;
-        }
-        cout << "Client: " << msg << endl;
-        cout << ">";
-        string data;
-        getline(cin, data);
-        memset(&msg, 0, sizeof(msg)); //clear the buffer
-        strcpy(msg, data.c_str());
-        if(data == "exit")
-        {
-            //send to the client that server has closed the connection
-            send(newSd, (char*)&msg, strlen(msg), 0);
-            break;
-        }
-        //send the message to client
-        bytesWritten += send(newSd, (char*)&msg, strlen(msg), 0);
-    }*/
     
     //we need to close the socket descriptors after we're all done
     gettimeofday(&end1, NULL);
@@ -227,5 +216,6 @@ int main(int argc, char *argv[])
     cout << "Elapsed time: " << (end1.tv_sec - start1.tv_sec) 
         << " secs" << endl;
     cout << "Connection closed..." << endl;
+    readFile.close();
     return 0;   
 }
