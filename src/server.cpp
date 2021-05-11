@@ -34,6 +34,7 @@ void worker(int newSd) {
         memset(textfile, 0, text_len);
         if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){
             fprintf(stderr, "Error receiving data %d\n", errno);
+            break;
         }
         printf("Received bytes %d\nReceived string \"%s\"\n", bytecount, buffer);
         if(!strcmp(buffer, "create")) {
@@ -72,7 +73,52 @@ void worker(int newSd) {
             if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){ //receive register key
                 fprintf(stderr, "Error receiving data to write in file%d\n", errno);
             }
-            printf("REGISTER KEY: %s\n", buffer);
+            cout << "REGISTER KEY: " << buffer << endl;
+            std::string k = buffer;
+            cout << "KEY FILE IS " << k << endl;
+            memset(buffer, 0, buffer_len);
+            ofstream file ("../files/"+k+".txt");
+            if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){ //receive text content
+                fprintf(stderr, "Error receiving data to write in file%d\n", errno);
+            }
+            if(file.is_open()) {
+                file << buffer << endl;
+                file.close();
+            }
+            else {
+                fprintf(stderr, "Error file does not exist %d\n", errno);
+            }
+            memset(buffer, 0, buffer_len);
+        }
+        if(!strcmp(buffer, "read")) {
+            memset(buffer, 0, buffer_len);
+            strcat(buffer, "SEND REGISTER KEY");
+            if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){ //ask for register key
+                fprintf(stderr, "Error sending data %d\n", errno);
+            }
+            memset(buffer, 0, buffer_len);
+            if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){ //receive register key
+                fprintf(stderr, "Error receiving register key %d\n", errno);
+            }
+            cout << "REGISTER KEY: " << buffer << endl;
+            std::string k = buffer;
+            cout << "KEY FILE IS " << k << endl;
+            memset(buffer, 0, buffer_len);
+            std::ifstream file("../files/"+k+".txt");
+            if(file.is_open()) {
+                
+                std::string content( (std::istreambuf_iterator<char>(file) ),
+                       (std::istreambuf_iterator<char>()    ) );
+                file.close();
+                strcpy(buffer, content.c_str());
+                if((bytecount = send(newSd, buffer, buffer_len, 0))== -1){ //send file content
+                    memset(buffer, 0, buffer_len);
+                    fprintf(stderr, "Error sending file data %d\n", errno);
+                }
+            }
+            else {
+                fprintf(stderr, "Error file does not exist %d\n", errno);
+            }
             memset(buffer, 0, buffer_len);
         }
         printf("Sent bytes %d\n", bytecount);

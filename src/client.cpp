@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
             memset(&message, 0, sizeof(message));//clear the buffer
         }
         // we want to update a register
-        // send "update" from client
+        // send "update" to server
         // server asks for register key
         // send register key and text
         if(data == "update") {
@@ -88,19 +88,31 @@ int main(int argc, char *argv[])
             getline(cin, data);
             strcpy(msg, data.c_str());
             bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send register key
-            //bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
+            bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
             memset(&message, 0, sizeof(message));//clear the buffer
+            memset(&msg, 0, sizeof(msg));
         }
-        /*bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0);
-        cout << "Awaiting server response..." << endl;
-        memset(&msg, 0, sizeof(msg));//clear the buffer
-        bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
-        if(!strcmp(msg, "exit"))
-        {
-            cout << "Server has quit the session" << endl;
-            break;
+        // we want to read a register
+        // send "read" to server
+        // server asks for register key
+        // send register key
+        // receive and print text
+        if(data == "read") {
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send "read"
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
+            cout << "Server: " << msg << endl; // server asked for register key
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            getline(cin, data);
+            strcpy(msg, data.c_str());
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send register key
+            memset(&msg, 0, sizeof(msg));
+            //bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
+            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0); // receive register text
+            cout << msg << endl;
+            memset(&message, 0, sizeof(message));//clear the buffer
+            memset(&msg, 0, sizeof(msg));
         }
-        cout << "Server: " << msg << endl;*/
     }
     gettimeofday(&end1, NULL);
     close(clientSd);
