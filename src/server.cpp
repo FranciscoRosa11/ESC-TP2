@@ -46,16 +46,11 @@ void worker(int newSd) {
             if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){
                 fprintf(stderr, "Error sending data %d\n", errno);
             }
-            std::ofstream outfile ("../files/"+s+".txt");
             memset(buffer, 0, buffer_len);
             if((bytecount = recv(newSd, textfile, text_len, 0))== -1){
                 fprintf(stderr, "Error receiving data to write in file%d\n", errno);
             }
-            outfile << textfile << std::endl;
-            outfile.close();
             printf("Received bytes %d\n", bytecount);
-            const char *cstr = s.c_str();
-            strcat(buffer, cstr);
             memset(buffer, 0, buffer_len);
             memset(textfile, 0, text_len);
             mtx.unlock();
