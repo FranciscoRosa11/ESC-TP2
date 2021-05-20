@@ -7,6 +7,8 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <thread>
+#include <mutex>
 #include <string.h>
 #include <netdb.h>
 #include <sys/uio.h>
@@ -15,6 +17,70 @@
 #include <fcntl.h>
 #include <fstream>
 using namespace std;
+
+void worker(int clientSd) {
+
+    //create a message buffer 
+    char msg[1024];
+    char message[1024]; 
+    int bytesRead, bytesWritten = 0;
+    int count = 0;
+    char letters[] = "abcdefghijklmnopqrstuvwxyz";
+
+    while(count < 22)
+    {
+        int randNumber = rand() % 22;
+        memset(&msg, 0, sizeof(msg));//clear the buffer
+        memset(&message, 0, sizeof(message));//clear the buffer
+        int i = 0;
+        while(i < 1024) {
+            char x = letters[rand() % 26];
+            message[i] = x;
+            i++;
+        }
+        /*if(data == "exit")
+        {
+            send(clientSd, (char*)&msg, strlen(msg), 0);
+            break;
+        }*/
+        if(randNumber != 0) { //"create" operation
+            strcpy(msg, "create");
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); //send "create"
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg),0); //server asks for register key
+            cout << "Server: " << msg << endl;
+            memset(&msg, 0, sizeof(msg));
+            int regKey = rand() % 100000;
+            std::string s = std::to_string(regKey);
+            strcpy(msg, s.c_str());
+            bytesWritten += send(clientSd, (char*)&msg, strlen(message), 0); //send register key
+            memset(&msg, 0, sizeof(msg));
+            bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); //send register content 
+            memset(&message, 0, sizeof(message));//clear the buffer
+        }
+        // we want to read a register
+        // send "read" to server
+        // server asks for register key
+        // send register key
+        // receive and print text
+        else {
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send "read"
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
+            cout << "Server: " << msg << endl; // server asked for register key
+            memset(&msg, 0, sizeof(msg));//clear the buffer
+            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send register key
+            memset(&msg, 0, sizeof(msg));
+            //bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
+            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0); // receive register text
+            cout << msg << endl;
+            memset(&message, 0, sizeof(message));//clear the buffer
+            memset(&msg, 0, sizeof(msg));
+        }
+    }
+
+}
+
 //Client side
 int main(int argc, char *argv[])
 {
@@ -47,73 +113,17 @@ int main(int argc, char *argv[])
     int bytesRead, bytesWritten = 0;
     struct timeval start1, end1;
     gettimeofday(&start1, NULL);
-    char letters[] = "abcdefghijklmnopqrstuvwxyz";
-    while(1)
-    {
-        cout << ">";
-        string data;
-        getline(cin, data);
-        memset(&msg, 0, sizeof(msg));//clear the buffer
-        memset(&message, 0, sizeof(message));//clear the buffer
-        int i = 0;
-        while(i < 1024) {
-            char x = letters[rand() % 26];
-            message[i] = x;
-            i++;
-        }
-        strcpy(msg, data.c_str());
-        if(data == "exit")
-        {
-            send(clientSd, (char*)&msg, strlen(msg), 0);
-            break;
-        }
-        if(data == "create") {
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0);
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg),0);
-            cout << "Server: " << msg << endl;
-            bytesWritten += send(clientSd, (char*)&message, strlen(message), 0);
-            memset(&message, 0, sizeof(message));//clear the buffer
-        }
-        // we want to update a register
-        // send "update" to server
-        // server asks for register key
-        // send register key and text
-        if(data == "update") {
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send "update"
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
-            cout << "Server: " << msg << endl; // server asked for register key
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            getline(cin, data);
-            strcpy(msg, data.c_str());
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send register key
-            bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
-            memset(&message, 0, sizeof(message));//clear the buffer
-            memset(&msg, 0, sizeof(msg));
-        }
-        // we want to read a register
-        // send "read" to server
-        // server asks for register key
-        // send register key
-        // receive and print text
-        if(data == "read") {
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send "read"
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
-            cout << "Server: " << msg << endl; // server asked for register key
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            getline(cin, data);
-            strcpy(msg, data.c_str());
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send register key
-            memset(&msg, 0, sizeof(msg));
-            //bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
-            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0); // receive register text
-            cout << msg << endl;
-            memset(&message, 0, sizeof(message));//clear the buffer
-            memset(&msg, 0, sizeof(msg));
-        }
+
+    int num_threads = 8;
+    int num = 0;
+
+    while(num < num_threads) {
+        cout << "Connected with client!" << endl;
+
+        std::thread t(worker,clientSd);
+        t.detach();
     }
+
     gettimeofday(&end1, NULL);
     close(clientSd);
     cout << "********Session********" << endl;
