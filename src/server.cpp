@@ -19,74 +19,58 @@
 using namespace std;
 
 std::mutex mtx;
-fstream readFile;
 
 int64_t key = 0;
 
 void worker(int newSd) {
-    char buffer[1024];
-    char textfile[1024];
+    char buffer[3000];
+    char textfile[1025];
     int text_len = 1024;
     int buffer_len = 1024;
     int bytecount;
+    fstream readFile;
+    readFile.open("../files/records.txt", ios::out | ios::in);
 
     while(1) {
         memset(buffer, 0, buffer_len);
         memset(textfile, 0, text_len);
-        if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){
+        if((bytecount = recv(newSd, buffer, 4, 0))== -1){ //receive data-length
             fprintf(stderr, "Error receiving data %d\n", errno);
             break;
         }
-        printf("Received bytes %d\nReceived string \"%s\"\n", bytecount, buffer);
-        if(!strcmp(buffer, "create")) {
-            mtx.lock();
-            int index = rand() % 100000;
-            readFile.seekp(index * 1024);
-            strcat(buffer, " SERVER ECHO");
-            if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){
-                fprintf(stderr, "Error sending data %d\n", errno);
-            }
-            memset(buffer, 0, buffer_len);
-            if((bytecount = recv(newSd, textfile, text_len, 0))== -1){
-                fprintf(stderr, "Error receiving data to write in file%d\n", errno);
-            }
-            printf("Received bytes %d\n", bytecount);
-            memset(buffer, 0, buffer_len);
-            memset(textfile, 0, text_len);
-            mtx.unlock();
+        cout << "LEN " << buffer << endl;
+        buffer[bytecount] = '\0';
+        size_t len = (size_t) atoi(buffer);
+        cout << "LENGTH OF DATA " << len << endl;
+        memset(buffer, 0, buffer_len);
+        if((bytecount = recv(newSd, buffer, len, 0))== -1){ //receive data
+            fprintf(stderr, "Error receiving data %d\n", errno);
+            break;
         }
+        cout << "RECEIVED DATA WITH BYTES " << bytecount << endl;
+        buffer[bytecount] = '\0';
+        char array[3][1024];
+        int size = 0;
+        char* res;
+        res = strtok(buffer, "|");
+        while(res != NULL) {
+            strcpy(array[size],res);
+            size++;
+            res = strtok(NULL, "|");
+        }
+        readFile.seekp(atoi(array[1]) * 1024);
+        readFile.write(array[2], 1024);
+        readFile.close();
+        memset(buffer, 0, buffer_len);
+        break;
         // we want to update a register
         // receive "update" from client
         // ask for register key
         // receive register key and text
-        if(!strcmp(buffer, "update")) {
-            memset(buffer, 0, buffer_len);
-            strcat(buffer, "SEND REGISTER KEY");
-            if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){ //ask for register key
-                fprintf(stderr, "Error sending data %d\n", errno);
-            }
-            memset(buffer, 0, buffer_len);
-            if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){ //receive register key
-                fprintf(stderr, "Error receiving data to write in file%d\n", errno);
-            }
-            cout << "REGISTER KEY: " << buffer << endl;
-            std::string k = buffer;
-            cout << "KEY FILE IS " << k << endl;
-            memset(buffer, 0, buffer_len);
-            ofstream file ("../files/"+k+".txt");
-            if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){ //receive text content
-                fprintf(stderr, "Error receiving data to write in file%d\n", errno);
-            }
-            if(file.is_open()) {
-                file << buffer << endl;
-                file.close();
-            }
-            else {
-                fprintf(stderr, "Error file does not exist %d\n", errno);
-            }
-            memset(buffer, 0, buffer_len);
+        if(!strcmp(buffer, "create")) {
+            
         }
-        if(!strcmp(buffer, "read")) {
+        /*if(!strcmp(buffer, "read")) {
             memset(buffer, 0, buffer_len);
             strcat(buffer, "SEND REGISTER KEY");
             if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){ //ask for register key
@@ -116,9 +100,29 @@ void worker(int newSd) {
                 fprintf(stderr, "Error file does not exist %d\n", errno);
             }
             memset(buffer, 0, buffer_len);
-        }
-        printf("Sent bytes %d\n", bytecount);
+        }*/
     }
+}
+
+int things() {
+
+    char message[1024];
+
+    int j = 0;
+    memset(message, 0, 1024);
+    while(j < 1024) {
+        message[j] = 'A';
+        j++;
+    }
+
+    std::fstream file;
+    file.open("../files/records.txt", ios::in | ios::out);
+    file.seekp(0);
+
+    file.write(message, 1024);
+    file.close();
+
+    return 0;
 }
 
 //Server side
@@ -135,8 +139,8 @@ int main(int argc, char *argv[])
     char letters[] = "abcdefghijklmnopqrstuvwxyz";
     char message[1024];
     char r[1024];
-    fstream outFile;
-    outFile.open("../files/records.txt", fstream::out | fstream::in);
+    std::ofstream outFile("../files/records.txt");
+    //outFile.open("../files/records.txt", fstream::out | fstream::in);
     int i = 0;
     int j = 0;
     for(i = 0; i < 100000; i++) {
@@ -150,11 +154,10 @@ int main(int argc, char *argv[])
         outFile.seekp(i * 1024);
         outFile.write(message, 1024);
     }
-
     outFile.close();
 
-    readFile.open("../files/records.txt", fstream::out | fstream::in);
-
+    //things();
+    
     //grab the port number
     int port = atoi(argv[1]);
     //buffer to send and receive messages with
@@ -211,6 +214,5 @@ int main(int argc, char *argv[])
     cout << "Elapsed time: " << (end1.tv_sec - start1.tv_sec) 
         << " secs" << endl;
     cout << "Connection closed..." << endl;
-    readFile.close();
     return 0;   
 }
