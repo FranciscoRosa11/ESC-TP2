@@ -19,110 +19,115 @@
 using namespace std;
 
 std::mutex mtx;
+fstream readFile;
 
 int64_t key = 0;
 
 void worker(int newSd) {
+
+    struct timeval start1, end1;
+    gettimeofday(&start1, NULL);
+
+    std::thread::id t_id = std::this_thread::get_id();
+    cout << "THREAD ID: " << t_id << endl; 
+
     char buffer[3000];
     char textfile[1025];
     int text_len = 1024;
-    int buffer_len = 1024;
+    int buffer_len = 3000;
     int bytecount;
-    fstream readFile;
-    readFile.open("../files/records.txt", ios::out | ios::in);
 
+    if(readFile.is_open()) {
+        cout << "GLOBAL FILE IS OPEN" << endl;
+    }
     while(1) {
+        int leng = 0;
+        char *op = (char*)malloc(4);
         memset(buffer, 0, buffer_len);
         memset(textfile, 0, text_len);
-        if((bytecount = recv(newSd, buffer, 4, 0))== -1){ //receive data-length
-            fprintf(stderr, "Error receiving data %d\n", errno);
-            break;
+        while (leng < 4) {
+            if((bytecount = recv(newSd, buffer, 4, 0))== -1) { //receive data-length
+                fprintf(stderr, "Error receiving data %d\n", errno);
+                break;
+            }
+            leng += bytecount;
+            std::cout << "READ BYTES " << leng << " " << buffer << endl;
         }
-        cout << "LEN " << buffer << endl;
         buffer[bytecount] = '\0';
-        size_t len = (size_t) atoi(buffer);
-        cout << "LENGTH OF DATA " << len << endl;
+        int len = atoi(buffer);
+        std::cout << "A LEN DA LINHA 51 É " << len << endl;
+        if(len >= 3000) {
+            strcpy(op, "get");
+            len = len - 3000;
+            std::cout << op << endl;
+        }
+        else {
+            strcpy(op, "put");
+        }
         memset(buffer, 0, buffer_len);
-        if((bytecount = recv(newSd, buffer, len, 0))== -1){ //receive data
-            fprintf(stderr, "Error receiving data %d\n", errno);
-            break;
+        if(strcmp(op, "put") == 0) {
+            std::cout << "ESTOU NO PUT" << endl;
+            if((bytecount = recv(newSd, buffer, len, 0))== -1){ //receive data
+                fprintf(stderr, "Error receiving data %d\n", errno);
+                break;
+            }
+            std::cout << "RECEIVED DATA WITH BYTES " << bytecount << endl;
+            std::cout << "HERE BEFORE LINE 56" << endl;
+            buffer[bytecount] = '\0';
+            char array[3][1024];
+            int size = 0;
+            char* res;
+            res = strtok(buffer, "|");
+            while(res != NULL) {
+                strcpy(array[size],res);
+                size++;
+                res = strtok(NULL, "|");
+            }
+            mtx.lock();
+            readFile.seekp(atoi(array[1]) * 1024, ios::beg);
+            readFile.write(array[2], 1024);
+            readFile.seekp(0, ios::beg);
+            mtx.unlock();
+            //readFile.close();
+            memset(buffer, 0, buffer_len);
+        } else if(strcmp(op, "get") == 0) {
+            std::cout << "ESTOU NO GET" << endl;
+            if((bytecount = recv(newSd, buffer, len, 0))== -1){ //receive data with key
+                fprintf(stderr, "Error receiving data %d\n", errno);
+                break;
+            }
+            std::cout << "RECEIVED DATA WITH BYTES " << bytecount << endl;
+            std::cout << buffer << endl;
+            buffer[bytecount] = '\0';
+            char array[2][1024];
+            int size = 0;
+            char* res;
+            res = strtok(buffer, "|");
+            while(res != NULL) {
+                strcpy(array[size],res);
+                size++;
+                res = strtok(NULL, "|");
+            }
+            memset(buffer, 0, buffer_len);
+            readFile.seekp((int) atoi(array[1]) * 1024, ios::beg);
+            char r[100000];
+            if(readFile.is_open()) {
+                readFile.read(r, 1024);
+                std::cout << r << endl;
+                readFile.seekp(0, ios::beg);
+            } else {
+                std::cout << "FILE CLOSED" << endl;
+            }
+            send(newSd, r, 1024, 0); //send data to client
+            std::cout << "SENT 1024 bytes to client" << endl;
+            //readFile.close();
+            memset(buffer, 0, buffer_len);
         }
-        cout << "RECEIVED DATA WITH BYTES " << bytecount << endl;
-        buffer[bytecount] = '\0';
-        char array[3][1024];
-        int size = 0;
-        char* res;
-        res = strtok(buffer, "|");
-        while(res != NULL) {
-            strcpy(array[size],res);
-            size++;
-            res = strtok(NULL, "|");
-        }
-        readFile.seekp(atoi(array[1]) * 1024);
-        readFile.write(array[2], 1024);
-        readFile.close();
-        memset(buffer, 0, buffer_len);
-        break;
-        // we want to update a register
-        // receive "update" from client
-        // ask for register key
-        // receive register key and text
-        if(!strcmp(buffer, "create")) {
-            
-        }
-        /*if(!strcmp(buffer, "read")) {
-            memset(buffer, 0, buffer_len);
-            strcat(buffer, "SEND REGISTER KEY");
-            if((bytecount = send(newSd, buffer, strlen(buffer), 0))== -1){ //ask for register key
-                fprintf(stderr, "Error sending data %d\n", errno);
-            }
-            memset(buffer, 0, buffer_len);
-            if((bytecount = recv(newSd, buffer, buffer_len, 0))== -1){ //receive register key
-                fprintf(stderr, "Error receiving register key %d\n", errno);
-            }
-            cout << "REGISTER KEY: " << buffer << endl;
-            std::string k = buffer;
-            cout << "KEY FILE IS " << k << endl;
-            memset(buffer, 0, buffer_len);
-            std::ifstream file("../files/"+k+".txt");
-            if(file.is_open()) {
-                
-                std::string content( (std::istreambuf_iterator<char>(file) ),
-                       (std::istreambuf_iterator<char>()    ) );
-                file.close();
-                strcpy(buffer, content.c_str());
-                if((bytecount = send(newSd, buffer, buffer_len, 0))== -1){ //send file content
-                    memset(buffer, 0, buffer_len);
-                    fprintf(stderr, "Error sending file data %d\n", errno);
-                }
-            }
-            else {
-                fprintf(stderr, "Error file does not exist %d\n", errno);
-            }
-            memset(buffer, 0, buffer_len);
-        }*/
+        
     }
-}
-
-int things() {
-
-    char message[1024];
-
-    int j = 0;
-    memset(message, 0, 1024);
-    while(j < 1024) {
-        message[j] = 'A';
-        j++;
-    }
-
-    std::fstream file;
-    file.open("../files/records.txt", ios::in | ios::out);
-    file.seekp(0);
-
-    file.write(message, 1024);
-    file.close();
-
-    return 0;
+    gettimeofday(&end1, NULL);
+    std::cout << "Elapsed time: " << (end1.tv_sec - start1.tv_sec) 
+        << " secs" << endl;
 }
 
 //Server side
@@ -155,6 +160,7 @@ int main(int argc, char *argv[])
         outFile.write(message, 1024);
     }
     outFile.close();
+    readFile.open("../files/records.txt", ios::in | ios::out);
 
     //things();
     
@@ -186,7 +192,7 @@ int main(int argc, char *argv[])
         cerr << "Error binding socket to local address" << endl;
         exit(0);
     }
-    cout << "Waiting for a client to connect..." << endl;
+    std::cout << "Waiting for a client to connect..." << endl;
     //listen for up to 5 requests at a time
     listen(serverSd, 5);
     //receive a request from client using accept
@@ -195,24 +201,21 @@ int main(int argc, char *argv[])
     socklen_t newSockAddrSize = sizeof(newSockAddr);
     //accept, create a new socket descriptor to 
     //handle the new connection with client
-    struct timeval start1, end1;
-    gettimeofday(&start1, NULL);
+    
     int newSd;
     while((newSd = accept(serverSd, (sockaddr *)&newSockAddr, &newSockAddrSize)) != -1) {
-        cout << "Connected with client!" << endl;
+        std::cout << "Connected with client!" << endl;
 
         std::thread t(worker,newSd);
         t.detach();
     }
     
     //we need to close the socket descriptors after we're all done
-    gettimeofday(&end1, NULL);
+    
     close(newSd);
     close(serverSd);
-    cout << "********Session********" << endl;
+    std::cout << "********Session********" << endl;
     //cout << "Bytes written: " << bytesWritten << " Bytes read: " << bytesRead << endl;
-    cout << "Elapsed time: " << (end1.tv_sec - start1.tv_sec) 
-        << " secs" << endl;
-    cout << "Connection closed..." << endl;
+    std::cout << "Connection closed..." << endl;
     return 0;   
 }

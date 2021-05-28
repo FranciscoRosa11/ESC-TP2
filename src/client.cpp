@@ -22,11 +22,27 @@ using namespace std;
 
 std::mutex mtx;
 
-void worker(int clientSd) {
+void worker(char *serverIp, int port) {
+
+    //setup a socket and connection tools 
+    struct hostent* host = gethostbyname(serverIp); 
+    sockaddr_in sendSockAddr;   
+    bzero((char*)&sendSockAddr, sizeof(sendSockAddr)); 
+    sendSockAddr.sin_family = AF_INET; 
+    sendSockAddr.sin_addr.s_addr = 
+        inet_addr(inet_ntoa(*(struct in_addr*)*host->h_addr_list));
+    sendSockAddr.sin_port = htons(port);
+
+    int clientSd = socket(AF_INET, SOCK_STREAM, 0);
+        //try to connect...
+        int status = connect(clientSd, (sockaddr*) &sendSockAddr, sizeof(sendSockAddr));
+        if(status < 0)
+        {
+            std::cout<<"Error connecting to socket!"<<endl;
+        }
+        std::cout << "Connected to the server!" << endl;
 
     srand(time(NULL));
-
-    cout << "IM WORKING BITCH" << endl;
 
     //create a message buffer 
     char msg[3000];
@@ -35,11 +51,14 @@ void worker(int clientSd) {
     int count = 0;
     char letters[] = "123456789abcdefghijklmnopqtrsuvxwyzABCDEFGHIJKLMNOPQTRSUVWXYZ";
     int m = 0;
-    while(m < 22)
+    while(1) {
+        while(m < 22)
     {
-        srand(17);
+        srand(m+25);
         int random = 0;
-        random = rand() % 5;
+        random = rand() % 22; // 0->read && >0->write
+        int rd = 0;
+        rd = rand() % 100000;
         string data;
         memset(&msg, 0, sizeof(msg));//clear the buffer
         memset(&message, 0, sizeof(message));//clear the buffer
@@ -50,12 +69,13 @@ void worker(int clientSd) {
             i++;
         }
         //message[1024] = '\0';
-        if(random >= 0)
+        cout << "RANDOM É: " << random << endl;
+        if(random > 0)
             data = "put";
         else
             data = "get";
         
-        //len of message will be: 3 + 1(|) + 
+        //len of message will be: 3 + 1(|) + 1024+3+1+1+(1---6) = 1030 -- 1035
         
         strcpy(msg, data.c_str());
         // we want to update a register
@@ -65,40 +85,35 @@ void worker(int clientSd) {
         if(data == "put") {
             strcat(msg, "|");
             char s[1];
-            sprintf(s, "%d", random);
+            sprintf(s, "%d", rd);
             strcat(msg, s);
             strcat(msg, "|");
             strcat(msg, message);
-            cout << "LENGTH OF MESSAGE " << strlen(msg) << endl;
+            std::cout << "LENGTH OF MESSAGE " << strlen(msg) << endl;
             char d[1];
             sprintf(d, "%d", (int) strlen(msg));
-            send(clientSd, d, strlen(d),0);
-            send(clientSd, msg, sizeof(msg), 0);
+            send(clientSd, d, strlen(d),0); // this is sending the data size
+            send(clientSd, msg, strlen(msg), 0); //sending the actual data
+        } else if(data == "get") {
+            strcat(msg, "|");
+            char s[1];
+            sprintf(s, "%d", rd);
+            strcat(msg,s);
+            std::cout << "LENGTH OF MESSAGE " << strlen(msg) << endl;
+            char d[1];
+            sprintf(d, "%d", (int) strlen(msg) + 3000);
+            send(clientSd, d, strlen(d), 0); // send data length
+            send(clientSd, msg, strlen(msg), 0); //send register key
+            memset(&msg, 0, sizeof(msg));
+            recv(clientSd, msg, 1024, 0); // receive data;
+            std::cout << msg << endl;
+            memset(&msg, 0, sizeof(msg));
         }
-        // we want to read a register
-        // send "read" to server
-        // server asks for register key
-        // send register key
-        // receive and print text
-        /*if(data == "read") {
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send "read"
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0);
-            cout << "Server: " << msg << endl; // server asked for register key
-            memset(&msg, 0, sizeof(msg));//clear the buffer
-            getline(cin, data);
-            strcpy(msg, data.c_str());
-            bytesWritten += send(clientSd, (char*)&msg, strlen(msg), 0); // send register key
-            memset(&msg, 0, sizeof(msg));
-            //bytesWritten += send(clientSd, (char*)&message, strlen(message), 0); // send text to update
-            bytesRead += recv(clientSd, (char*)&msg, sizeof(msg), 0); // receive register text
-            cout << msg << endl;
-            memset(&message, 0, sizeof(message));//clear the buffer
-            memset(&msg, 0, sizeof(msg));
-        }*/
-    m++;
+        m++;
     
+        }
     }
+    
 
 }
 
@@ -114,33 +129,17 @@ int main(int argc, char *argv[])
     //create a message buffer 
     char msg[1024];
     char message[1024]; 
-    //setup a socket and connection tools 
-    struct hostent* host = gethostbyname(serverIp); 
-    sockaddr_in sendSockAddr;   
-    bzero((char*)&sendSockAddr, sizeof(sendSockAddr)); 
-    sendSockAddr.sin_family = AF_INET; 
-    sendSockAddr.sin_addr.s_addr = 
-        inet_addr(inet_ntoa(*(struct in_addr*)*host->h_addr_list));
-    sendSockAddr.sin_port = htons(port);
+    
     
     int bytesRead, bytesWritten = 0;
     struct timeval start1, end1;
     gettimeofday(&start1, NULL);
     std::vector<std::thread> threads;
     int i;
-    int num_threads = 1;
+    int num_threads = 2;
     int num = 0;
     for(i = 0; i < num_threads; i++) {
-        int clientSd = socket(AF_INET, SOCK_STREAM, 0);
-        //try to connect...
-        int status = connect(clientSd, (sockaddr*) &sendSockAddr, sizeof(sendSockAddr));
-        if(status < 0)
-        {
-            cout<<"Error connecting to socket!"<<endl;
-        }
-        cout << "Connected to the server!" << endl;
-
-        threads.push_back(std::thread(worker,clientSd));
+        threads.push_back(std::thread(worker,serverIp, port));
         //t.detach();
     }
 
@@ -149,11 +148,11 @@ int main(int argc, char *argv[])
     }
     gettimeofday(&end1, NULL);
     //close(clientSd);
-    cout << "********Session********" << endl;
-    cout << "Bytes written: " << bytesWritten << 
+    std::cout << "********Session********" << endl;
+    std::cout << "Bytes written: " << bytesWritten << 
     " Bytes read: " << bytesRead << endl;
-    cout << "Elapsed time: " << (end1.tv_sec- start1.tv_sec) 
+    std::cout << "Elapsed time: " << (end1.tv_sec- start1.tv_sec) 
       << " secs" << endl;
-    cout << "Connection closed" << endl;
+    std::cout << "Connection closed" << endl;
     return 0;    
 }
