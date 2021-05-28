@@ -73,9 +73,9 @@ void worker(char *serverIp, int port) {
         }
         //message[1024] = '\0';
         if(random > 0)
-            data = "put";
-        else
             data = "get";
+        else
+            data = "put";
         
         //len of message will be: 3 + 1(|) + 1024+3+1+1+(1---6) = 1030 -- 1035
         
@@ -106,7 +106,7 @@ void worker(char *serverIp, int port) {
             send(clientSd, msg, strlen(msg), 0); //send register key
             memset(&msg, 0, sizeof(msg));
             recv(clientSd, msg, 1024, 0); // receive data;
-            std::cout << "THREAD " << t_id << " " << msg << endl;
+            //std::cout << "THREAD " << t_id << " " << msg << endl;
             memset(&msg, 0, sizeof(msg));
         }
         m++;
@@ -128,7 +128,7 @@ void worker(char *serverIp, int port) {
 int main(int argc, char *argv[])
 {
     //we need 2 things: ip address and port number, in that order
-    if(argc != 3)
+    if(argc != 4)
     {
         cerr << "Usage: ip_address port" << endl; exit(0); 
     } //grab the IP address and port number 
