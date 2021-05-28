@@ -14,9 +14,11 @@
 #include <sys/uio.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <chrono>
 #include <fcntl.h>
 #include <fstream>
 using namespace std;
+using namespace std::chrono;
 
 std::mutex mtx;
 fstream readFile;
@@ -25,8 +27,7 @@ int64_t key = 0;
 
 void worker(int newSd) {
 
-    struct timeval start1, end1;
-    gettimeofday(&start1, NULL);
+    auto start = high_resolution_clock::now();
 
     std::thread::id t_id = std::this_thread::get_id();
     cout << "THREAD ID: " << t_id << endl; 
@@ -37,9 +38,6 @@ void worker(int newSd) {
     int buffer_len = 3000;
     int bytecount;
 
-    if(readFile.is_open()) {
-        cout << "GLOBAL FILE IS OPEN" << endl;
-    }
     while(1) {
         int leng = 0;
         char *op = (char*)malloc(4);
@@ -51,11 +49,15 @@ void worker(int newSd) {
                 break;
             }
             leng += bytecount;
-            std::cout << "READ BYTES " << leng << " " << buffer << endl;
+            //std::cout << "READ BYTES " << leng << " " << buffer << endl;
         }
         buffer[bytecount] = '\0';
+        if(strcmp(buffer, "exit") == 0) {
+            cout << "CIAO " << buffer << " THREAD " << t_id << endl;
+            close(newSd);
+            break;
+        }
         int len = atoi(buffer);
-        std::cout << "A LEN DA LINHA 51 É " << len << endl;
         if(len >= 3000) {
             strcpy(op, "get");
             len = len - 3000;
@@ -71,8 +73,6 @@ void worker(int newSd) {
                 fprintf(stderr, "Error receiving data %d\n", errno);
                 break;
             }
-            std::cout << "RECEIVED DATA WITH BYTES " << bytecount << endl;
-            std::cout << "HERE BEFORE LINE 56" << endl;
             buffer[bytecount] = '\0';
             char array[3][1024];
             int size = 0;
@@ -96,8 +96,6 @@ void worker(int newSd) {
                 fprintf(stderr, "Error receiving data %d\n", errno);
                 break;
             }
-            std::cout << "RECEIVED DATA WITH BYTES " << bytecount << endl;
-            std::cout << buffer << endl;
             buffer[bytecount] = '\0';
             char array[2][1024];
             int size = 0;
@@ -109,25 +107,26 @@ void worker(int newSd) {
                 res = strtok(NULL, "|");
             }
             memset(buffer, 0, buffer_len);
+            mtx.lock();
             readFile.seekp((int) atoi(array[1]) * 1024, ios::beg);
             char r[100000];
             if(readFile.is_open()) {
                 readFile.read(r, 1024);
-                std::cout << r << endl;
                 readFile.seekp(0, ios::beg);
             } else {
                 std::cout << "FILE CLOSED" << endl;
             }
+            mtx.unlock();
             send(newSd, r, 1024, 0); //send data to client
-            std::cout << "SENT 1024 bytes to client" << endl;
+            cout << r << endl;
             //readFile.close();
             memset(buffer, 0, buffer_len);
         }
         
     }
-    gettimeofday(&end1, NULL);
-    std::cout << "Elapsed time: " << (end1.tv_sec - start1.tv_sec) 
-        << " secs" << endl;
+    auto stop = high_resolution_clock::now();
+    auto duration = duration_cast<milliseconds>(stop - start);
+    cout << "THREAD " << t_id << " took: " << duration.count() << " milliseconds" << endl;
 }
 
 //Server side

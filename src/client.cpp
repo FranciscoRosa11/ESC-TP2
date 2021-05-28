@@ -24,6 +24,9 @@ std::mutex mtx;
 
 void worker(char *serverIp, int port) {
 
+    std::thread::id t_id = std::this_thread::get_id();
+    cout << "THREAD ID: " << t_id << endl; 
+
     //setup a socket and connection tools 
     struct hostent* host = gethostbyname(serverIp); 
     sockaddr_in sendSockAddr;   
@@ -69,7 +72,6 @@ void worker(char *serverIp, int port) {
             i++;
         }
         //message[1024] = '\0';
-        cout << "RANDOM É: " << random << endl;
         if(random > 0)
             data = "put";
         else
@@ -89,7 +91,6 @@ void worker(char *serverIp, int port) {
             strcat(msg, s);
             strcat(msg, "|");
             strcat(msg, message);
-            std::cout << "LENGTH OF MESSAGE " << strlen(msg) << endl;
             char d[1];
             sprintf(d, "%d", (int) strlen(msg));
             send(clientSd, d, strlen(d),0); // this is sending the data size
@@ -99,19 +100,25 @@ void worker(char *serverIp, int port) {
             char s[1];
             sprintf(s, "%d", rd);
             strcat(msg,s);
-            std::cout << "LENGTH OF MESSAGE " << strlen(msg) << endl;
             char d[1];
             sprintf(d, "%d", (int) strlen(msg) + 3000);
             send(clientSd, d, strlen(d), 0); // send data length
             send(clientSd, msg, strlen(msg), 0); //send register key
             memset(&msg, 0, sizeof(msg));
             recv(clientSd, msg, 1024, 0); // receive data;
-            std::cout << msg << endl;
+            std::cout << "THREAD " << t_id << " " << msg << endl;
             memset(&msg, 0, sizeof(msg));
         }
         m++;
     
         }
+
+        memset(&msg, 0, sizeof(msg));
+        strcpy(msg, "exit");
+        send(clientSd, msg, strlen(msg),0);
+        close(clientSd);
+        break;
+
     }
     
 
@@ -136,7 +143,8 @@ int main(int argc, char *argv[])
     gettimeofday(&start1, NULL);
     std::vector<std::thread> threads;
     int i;
-    int num_threads = 2;
+    char* nt = argv[3];
+    int num_threads = atoi(nt);
     int num = 0;
     for(i = 0; i < num_threads; i++) {
         threads.push_back(std::thread(worker,serverIp, port));
