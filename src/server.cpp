@@ -22,7 +22,7 @@ using namespace std::chrono;
 
 std::mutex mtx;
 fstream readFile;
-
+ofstream resultsFile("../files/results.txt", ios::app | ios::out);
 int64_t key = 0;
 
 void worker(int newSd) {
@@ -61,14 +61,12 @@ void worker(int newSd) {
         if(len >= 3000) {
             strcpy(op, "get");
             len = len - 3000;
-            std::cout << op << endl;
         }
         else {
             strcpy(op, "put");
         }
         memset(buffer, 0, buffer_len);
         if(strcmp(op, "put") == 0) {
-            std::cout << "ESTOU NO PUT" << endl;
             if((bytecount = recv(newSd, buffer, len, 0))== -1){ //receive data
                 fprintf(stderr, "Error receiving data %d\n", errno);
                 break;
@@ -91,7 +89,6 @@ void worker(int newSd) {
             //readFile.close();
             memset(buffer, 0, buffer_len);
         } else if(strcmp(op, "get") == 0) {
-            std::cout << "ESTOU NO GET" << endl;
             if((bytecount = recv(newSd, buffer, len, 0))== -1){ //receive data with key
                 fprintf(stderr, "Error receiving data %d\n", errno);
                 break;
@@ -118,7 +115,6 @@ void worker(int newSd) {
             }
             mtx.unlock();
             send(newSd, r, 1024, 0); //send data to client
-            cout << r << endl;
             //readFile.close();
             memset(buffer, 0, buffer_len);
         }
@@ -126,6 +122,19 @@ void worker(int newSd) {
     }
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
+    char count[100];
+    sprintf(count, "%lld\n", duration.count());
+    mtx.lock();
+    if (resultsFile.is_open())
+    {
+        resultsFile << count;
+        resultsFile.flush();
+    }
+    else
+    {
+        std::cerr << "didn't write" << std::endl;
+    }
+    mtx.unlock();
     cout << "THREAD " << t_id << " took: " << duration.count() << " milliseconds" << endl;
 }
 
@@ -133,12 +142,13 @@ void worker(int newSd) {
 int main(int argc, char *argv[])
 {
     //for the server, we only need to specify a port number
-    if(argc != 2)
+    if(argc != 3) //third argument is the number of clients we will be testing with
     {
         cerr << "Usage: port" << endl;
         exit(0);
     }
-
+    char* numClients = argv[2];
+    resultsFile << "Number of clients: " << numClients << "\n";
     // Create records file
     char letters[] = "abcdefghijklmnopqrstuvwxyz";
     char message[1024];
@@ -208,7 +218,6 @@ int main(int argc, char *argv[])
         std::thread t(worker,newSd);
         t.detach();
     }
-    
     //we need to close the socket descriptors after we're all done
     
     close(newSd);

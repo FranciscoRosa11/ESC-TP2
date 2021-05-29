@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string.h>
 #include <netdb.h>
+#include <chrono>
 #include <vector>
 #include <sys/uio.h>
 #include <sys/time.h>
@@ -19,6 +20,8 @@
 #include <fcntl.h>
 #include <fstream>
 using namespace std;
+using namespace std::this_thread;
+using namespace std::chrono;
 
 std::mutex mtx;
 
@@ -57,6 +60,7 @@ void worker(char *serverIp, int port) {
     while(1) {
         while(m < 22)
     {
+
         srand(m+25);
         int random = 0;
         random = rand() % 22; // 0->read && >0->write
@@ -102,7 +106,9 @@ void worker(char *serverIp, int port) {
             strcat(msg,s);
             char d[1];
             sprintf(d, "%d", (int) strlen(msg) + 3000);
+            sleep_for(nanoseconds(10));
             send(clientSd, d, strlen(d), 0); // send data length
+            sleep_for(nanoseconds(10));
             send(clientSd, msg, strlen(msg), 0); //send register key
             memset(&msg, 0, sizeof(msg));
             recv(clientSd, msg, 1024, 0); // receive data;

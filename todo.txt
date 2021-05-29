@@ -1,5 +1,3 @@
-store last key in file so it does not override existing files.
-error sending from server to client
 mutex for files?
 100mil/s --> 10 servidores
 assumir que cliente envia a chave
