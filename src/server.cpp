@@ -122,6 +122,7 @@ void worker(int newSd) {
         }
         
     }
+    fromFile.close();
     auto stop = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(stop - start);
     char count[100];
@@ -136,7 +137,6 @@ void worker(int newSd) {
     {
         std::cerr << "didn't write" << std::endl;
     }
-    mtx.unlock();
     cout << "THREAD " << t_id << " took: " << duration.count() << " milliseconds" << endl;
 }
 
@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
     }
     std::cout << "Waiting for a client to connect..." << endl;
     //listen for up to 5 requests at a time
-    listen(serverSd, 5);
+    listen(serverSd, atoi(numClients));
     //receive a request from client using accept
     //we need a new address to connect with the client
     sockaddr_in newSockAddr;
