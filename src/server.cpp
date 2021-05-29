@@ -21,6 +21,7 @@ using namespace std;
 using namespace std::chrono;
 
 std::mutex mtx;
+std::mutex results;
 fstream readFile;
 ofstream resultsFile("../files/results.txt", ios::app | ios::out);
 int64_t key = 0;
@@ -127,15 +128,17 @@ void worker(int newSd) {
     auto duration = duration_cast<milliseconds>(stop - start);
     char count[100];
     sprintf(count, "%lld\n", duration.count());
-    mtx.lock();
+    results.lock();
     if (resultsFile.is_open())
     {
         resultsFile << count;
         resultsFile.flush();
+        results.unlock();
     }
     else
     {
         std::cerr << "didn't write" << std::endl;
+        results.unlock();
     }
     cout << "THREAD " << t_id << " took: " << duration.count() << " milliseconds" << endl;
 }
