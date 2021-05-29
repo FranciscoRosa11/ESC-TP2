@@ -112,7 +112,6 @@ void worker(char *serverIp, int port) {
             send(clientSd, msg, strlen(msg), 0); //send register key
             memset(&msg, 0, sizeof(msg));
             recv(clientSd, msg, 1024, 0); // receive data;
-            //std::cout << "THREAD " << t_id << " " << msg << endl;
             memset(&msg, 0, sizeof(msg));
         }
         m++;

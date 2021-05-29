@@ -28,12 +28,11 @@ int64_t key = 0;
 
 void worker(int newSd) {
 
-    ifstream fromFile("../files/results.txt", ios::in);
+    ifstream fromFile("../files/records.txt", ios::in);
 
     auto start = high_resolution_clock::now();
 
     std::thread::id t_id = std::this_thread::get_id();
-    cout << "THREAD ID: " << t_id << endl; 
 
     char buffer[3000];
     char textfile[1025];
@@ -112,7 +111,7 @@ void worker(int newSd) {
             char r[100000];
             if(fromFile.is_open()) {
                 fromFile.read(r, 1024);
-                fromFile.seekg(0, ios::beg);
+                //fromFile.seekg(0, ios::beg);
             } else {
                 std::cout << "FILE CLOSED" << endl;
             }
@@ -140,7 +139,6 @@ void worker(int newSd) {
         std::cerr << "didn't write" << std::endl;
         results.unlock();
     }
-    cout << "THREAD " << t_id << " took: " << duration.count() << " milliseconds" << endl;
 }
 
 //Server side
