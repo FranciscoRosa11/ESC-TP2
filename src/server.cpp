@@ -27,6 +27,8 @@ int64_t key = 0;
 
 void worker(int newSd) {
 
+    ifstream fromFile("../files/results.txt", ios::in);
+
     auto start = high_resolution_clock::now();
 
     std::thread::id t_id = std::this_thread::get_id();
@@ -104,16 +106,16 @@ void worker(int newSd) {
                 res = strtok(NULL, "|");
             }
             memset(buffer, 0, buffer_len);
-            mtx.lock();
-            readFile.seekp((int) atoi(array[1]) * 1024, ios::beg);
+            //mtx.lock();
+            fromFile.seekg((int) atoi(array[1]) * 1024, ios::beg);
             char r[100000];
-            if(readFile.is_open()) {
-                readFile.read(r, 1024);
-                readFile.seekp(0, ios::beg);
+            if(fromFile.is_open()) {
+                fromFile.read(r, 1024);
+                fromFile.seekg(0, ios::beg);
             } else {
                 std::cout << "FILE CLOSED" << endl;
             }
-            mtx.unlock();
+            //mtx.unlock();
             send(newSd, r, 1024, 0); //send data to client
             //readFile.close();
             memset(buffer, 0, buffer_len);
